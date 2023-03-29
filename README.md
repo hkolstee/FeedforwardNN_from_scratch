@@ -1,4 +1,4 @@
-# Feedforward neural network
+# Feedforward neural network (implementation: feedforward.py)
 ### In this project I challenged myself to create a feedforward neural network from scratch.
 
 ### Features:
