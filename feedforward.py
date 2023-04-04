@@ -152,7 +152,7 @@ class FeedForwardNN:
             self.layers_weights.append(current_to_next)
 
     # reset gradients to 0
-    def resetGradients(self):
+    def __resetGradients(self):
         self.gradients = []
         for i, weights in enumerate(self.layers_weights):
             self.gradients.append(np.zeros(weights.shape))
