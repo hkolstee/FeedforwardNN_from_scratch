@@ -1,4 +1,7 @@
 import numpy as np
+import sys
+import math
+import collections
 
 # activiation functions and their derivatives
 def tanh(x):
@@ -8,13 +11,13 @@ def tanh_deriv(x):
     return (1 - np.power(np.tanh(x), 2))
 
 def sigmoid(x):
+    # prevent overflow
+    x = np.clip(x, -500, 500)
     return (1 / (1 + np.exp(-x)))
 
 def sigmoid_deriv(x):
-    # prevent overflow
-    x = np.clip(x, -500, 500)
-    # derivative is
-    return (sigmoid(x) * (1 - sigmoid(x)))
+    sigm = sigmoid(x)
+    return (sigm * (1 - sigm))
 
 def relu(x):
     return max(0., x)
@@ -22,11 +25,22 @@ def relu(x):
 def relu_deriv(x):
     return (1 if x > 0 else 0)
 
+def leaky_relu(x):
+    return (x if x > 0 else 0.01*x)
+
+def leaky_relu_deriv(x):
+    return (1 if x > 0 else 0.01)
+
 def linear(x):
     return x
 
 def linear_deriv(x):
-    return 0 # not sure if this should be like this
+    # if array
+    if isinstance(x, (collections.abc.Sequence, np.ndarray)):
+        return np.zeros(len(x))
+    # else single value
+    else:
+        return 1 
 
 def softmax(x):
     ex = np.exp(x - np.max(x))
@@ -51,13 +65,23 @@ def MSELoss(output, target):
 
 #   binary cross entropy
 def BCELoss(output, target):
+    # if (output == 1 and target == 0.0):
+    #     return 100
+    # elif(output == 1 and target == 1.0):
+    #     # second term np.log(1 - 1) should give 0
+    #     return (-target * np.log(output))
+    # else:
+    output = np.clip(output, 0.0000001, 0.9999999)
     return (-target * np.log(output) - (1 - target) * np.log(1 - output))
 
 def BCELoss_deriv(output, target):
+    # clip output for stability
+    output = np.clip(output, 0.0000001, 0.9999999)
     return (-target / output) + ((1 - target) / (1 - output))
 
 
 # simple feed forward network with multiple layers
+# (gradient clipping implemented to deal with common gradient issues in simple networks like this.)
 # parameters:
 #   input_size: The dimensionality of an input sample
 #   output_size: The dimensionality of the network output
@@ -111,8 +135,11 @@ class FeedForwardNN:
         elif (activ_func == "relu"):
             self.activ_func = relu
             self.activ_func_deriv = relu_deriv
+        elif (activ_func == "leaky_relu"):
+            self.activ_func = leaky_relu
+            self.activ_func_deriv = leaky_relu_deriv
         else:
-            raise KeyError("Only activation functions available: \"tanh\", \"sigmoid\", \"relu\"")
+            raise KeyError("Only activation functions available: \"tanh\", \"sigmoid\", \"relu\", \"leaky_relu\"")
         
     def __setOutActivFunc(self, out_activ_func):
         # set output activation function
@@ -154,7 +181,7 @@ class FeedForwardNN:
     # reset gradients to 0
     def __resetGradients(self):
         self.gradients = []
-        for i, weights in enumerate(self.layers_weights):
+        for weights in self.layers_weights:
             self.gradients.append(np.zeros(weights.shape))
 
     # forward through the model
@@ -209,7 +236,16 @@ class FeedForwardNN:
             else:
                 delta = np.dot(delta, np.squeeze(self.layers_weights[i+1])) * np.vectorize(self.activ_func_deriv)(self.weighted_sums[i])
                 self.gradients[i] += np.array([self.activ_vals[i-1] * error for error in delta])
-
+                
+        # gradient clipping performed here:
+        # print("grad before", self.gradients)
+        # min_clip = -1.5
+        # max_clip = 1.5
+        # for i in range(len(self.gradients)):
+            # np.clip(self.gradients[i], min_clip, max_clip, self.gradients[i])
+        
+        # print("grad after", self.gradients)
+        
     # take a step along the negative build up gradient (can be batch, or single sample, whenever you like)
     #   backpropage over any number of samples, the build up gradient gets stored in the network
     #   call step(), and a step is taken down this gradient, and the gradient is reset.
@@ -224,3 +260,17 @@ class FeedForwardNN:
     # get weights 
     def weights(self):
         return self.layers_weights
+
+# nn = FeedForwardNN(2, 1, 1, [3], "sigmoid", "sigmoid")
+# input = np.random.rand(2,)
+# print("input", input)
+
+# weights = nn.weights()
+# print("weights", weights)
+
+# output = nn.forward(input)[0]
+# print("output", output)
+
+# nn.backprop(input, output, 1, "BCELoss")
+
+
