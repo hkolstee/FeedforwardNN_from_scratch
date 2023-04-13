@@ -104,6 +104,8 @@ class FeedForwardNN:
         for i, nr_neurons in enumerate(hidden_units):
             self.activ_vals.append(np.zeros(nr_neurons))
             self.weighted_sums.append(np.zeros(nr_neurons))
+        self.activ_vals.append(np.zeros(self.output_size))
+        self.weighted_sums.append(np.zeros(self.output_size))
 
         # check if nr of layers is equal to nr of hidden_units sizes given in hidden_units array
         if (nr_layers != len(hidden_units)):
@@ -117,9 +119,10 @@ class FeedForwardNN:
         w_topology = self.__createTopology(input_size, hidden_units, output_size)
         # print("wtopo:", w_topology)
 
-        # initialize weights
+        # initialize weights + biases
         self.__initWeights(nr_layers, w_topology)
-        
+        self.__initBias(hidden_units)
+
         # set gradients to 0
         self.__resetGradients()
 
@@ -164,25 +167,46 @@ class FeedForwardNN:
             raise TypeError("hidden_units should be a list or array in the shape of (nr_layers,)") from None
         
         return w_topology
+    
+    # initialize the bias for each neuron of the model
+    def __initBias(self, hidden_units):
+        self.layers_biases = []
 
-    # initialize the weights of the entire model
+        # loop through number of hidden units per layer, assign zero value bias for each neuron
+        for i in range(len(hidden_units)):
+            # create array of zeros for neurons in layer
+            current_layer = np.zeros(hidden_units[i])
+            # append array to list of biases
+            self.layers_biases.append(current_layer)
+        # output layer bias
+        out_bias = np.zeros(self.output_size)
+        self.layers_biases.append(out_bias)
+        
+        print(self.layers_biases)
+
+    # initialize the weights between neurons of the entire model
     def __initWeights(self, nr_layers, w_topology):
         self.layers_weights = []
 
-        # loop through hidden_units array -> initialize weights to next hidden_units layer
+        # loop through topology array -> initialize weights to next hidden_units layer
         for i in range(nr_layers + 1):
             # create weights for current hidden_units layer to the next (xavier initialization)
             current_to_next = np.random.uniform(low = -(1/np.sqrt(w_topology[i])), 
                                                 high = (1/np.sqrt(w_topology[i])), 
                                                 size = (w_topology[i+1], w_topology[i]))
+
             # append to list
             self.layers_weights.append(current_to_next)
 
     # reset gradients to 0
     def __resetGradients(self):
         self.gradients = []
+        self.bias_gradients = []
         for weights in self.layers_weights:
             self.gradients.append(np.zeros(weights.shape))
+        for biases in self.layers_biases:
+            self.bias_gradients.append(np.zeros(biases.shape))
+        
 
     # forward through the model
     def forward(self, input):
@@ -193,19 +217,21 @@ class FeedForwardNN:
         # forward through the network (activation func on the weighted sum for each neuron in layer).
         #   The weighted sums and activation values are saved in list of matrices to be used in backprop.
         #   TODO: Can be implemented to only do this when training network.
-        out = input
         for i, weights in enumerate(self.layers_weights[:-1]):
             if (i == 0):
-                self.weighted_sums[i] = np.array([np.dot(out, node_weights) for node_weights in weights])
+                self.weighted_sums[i] = np.array([np.dot(input, node_weights) for node_weights in weights] + self.layers_biases[i])
                 self.activ_vals[i] = np.vectorize(self.activ_func)(self.weighted_sums[i])
             else:
-                self.weighted_sums[i] = np.array([self.activ_func(np.dot(self.activ_vals[i-1], node_weights)) for node_weights in weights])
+                # do zip
+                # self.weighted_sums[i] = np.array([self.activ_func(np.dot(self.activ_vals[i-1], node_weights)) for node_weights in weights])
+                self.weighted_sums[i] = np.array([np.dot(self.activ_vals[i-1], node_weights) for node_weights in weights] + self.layers_biases[i])
                 self.activ_vals[i] = np.vectorize(self.activ_func)(self.weighted_sums[i])
 
         # last layer to output
-        out = [self.out_activ_func(np.dot(self.activ_vals[-1], node_weights)) for node_weights in self.layers_weights[-1]]
+        self.weighted_sums[-1] = [np.dot(self.activ_vals[-2], node_weights) for node_weights in self.layers_weights[-1]] + self.layers_biases[-1]
+        self.activ_vals[-1] = np.vectorize(self.out_activ_func)(self.weighted_sums[-1])
 
-        return out
+        return self.activ_vals[-1]
     
     # backpropagation over network (SGD)
     def backprop(self, input, output, target, loss_function):
@@ -221,9 +247,10 @@ class FeedForwardNN:
         #       as can be concluded from chainrule
         #       where: delta = dLoss/dActiv_value * dActiv_value/dWsum
         #           for use in gradient calculation of deeper layers
-        # more info on inner workings: towardsdatascience.com -> understanding backpropagation
-        #   np.vectorize(function)(array) works as map(function, array) function
+        # derived from: towardsdatascience.com -> understanding backpropagation
+        #   np.vectorize(function)(array) works as map(function, array) 
         delta = loss_func_deriv(output, target) * np.vectorize(self.out_activ_func_deriv)(self.weighted_sums[-1])
+        self.bias_gradients[-1] = delta
         self.gradients[-1] += delta * self.activ_vals[-1]    
         # rest of network weight gradients 
         # this is calculated by: gradient = dot(delta^T, dWsum/dActiv_value) * dActiv_value/dWsum * dWsum/dWeights
@@ -231,10 +258,12 @@ class FeedForwardNN:
             # reached end -> need to use input as activation values
             if (i == 0):
                 delta = np.dot(delta, np.squeeze(self.layers_weights[i+1])) * np.vectorize(self.activ_func_deriv)(self.weighted_sums[i])
+                print(delta)
                 self.gradients[i] += np.array([input * error for error in delta])
             # somewhere within hidden layer weights
             else:
                 delta = np.dot(delta, np.squeeze(self.layers_weights[i+1])) * np.vectorize(self.activ_func_deriv)(self.weighted_sums[i])
+                print(delta)
                 self.gradients[i] += np.array([self.activ_vals[i-1] * error for error in delta])
                 
         # gradient clipping performed here:
@@ -261,16 +290,16 @@ class FeedForwardNN:
     def weights(self):
         return self.layers_weights
 
-# nn = FeedForwardNN(2, 1, 1, [3], "sigmoid", "sigmoid")
-# input = np.random.rand(2,)
-# print("input", input)
+nn = FeedForwardNN(2, 1, 2, [2, 2], "sigmoid", "sigmoid")
+input = np.random.rand(2,)
+print("input", input)
 
-# weights = nn.weights()
-# print("weights", weights)
+weights = nn.weights()
+print("weights", weights)
 
-# output = nn.forward(input)[0]
-# print("output", output)
+output = nn.forward(input)[0]
+print("output", output)
 
-# nn.backprop(input, output, 1, "BCELoss")
+nn.backprop(input, output, 1, "BCELoss")
 
 
