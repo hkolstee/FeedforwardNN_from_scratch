@@ -38,3 +38,10 @@ Training is done using stochastic gradient descent.
 ### Loss functions
 - BCELoss
 - TODO: MSELoss + more
+
+### Example classification problems solved with this implementation
+![linear](https://user-images.githubusercontent.com/38500350/232071239-6275f3a5-99e0-4585-95b2-990f5405019f.png)
+![circular](https://user-images.githubusercontent.com/38500350/232071273-587087c4-4c9e-436d-9e9a-1e6ae9f423ad.png)
+![hard](https://user-images.githubusercontent.com/38500350/232071315-485a37d2-5510-4e1b-8fd8-e4a45acd0a03.png)
+
+
