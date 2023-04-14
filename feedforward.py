@@ -59,18 +59,16 @@ def softmax_deriv(x):
     
 
 # loss functions
-#   TODO: mean squared error
+#   mean squared error
 def MSELoss(output, target):
-    pass
+    return np.mean(np.power((target - output), 2))
+
+def MSELoss_deriv(output, target):
+    return (-2 * (target - output) / target.shape[0])
 
 #   binary cross entropy
 def BCELoss(output, target):
-    # if (output == 1 and target == 0.0):
-    #     return 100
-    # elif(output == 1 and target == 1.0):
-    #     # second term np.log(1 - 1) should give 0
-    #     return (-target * np.log(output))
-    # else:
+    # clip output for stability
     output = np.clip(output, 0.0000001, 0.9999999)
     return (-target * np.log(output) - (1 - target) * np.log(1 - output))
 
