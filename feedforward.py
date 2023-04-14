@@ -181,8 +181,6 @@ class FeedForwardNN:
         # output layer bias
         out_bias = np.zeros(self.output_size)
         self.layers_biases.append(out_bias)
-        
-        print(self.layers_biases)
 
     # initialize the weights between neurons of the entire model
     def __initWeights(self, nr_layers, w_topology):
@@ -206,7 +204,6 @@ class FeedForwardNN:
             self.gradients.append(np.zeros(weights.shape))
         for biases in self.layers_biases:
             self.bias_gradients.append(np.zeros(biases.shape))
-        
 
     # forward through the model
     def forward(self, input):
@@ -251,21 +248,21 @@ class FeedForwardNN:
         #   np.vectorize(function)(array) works as map(function, array) 
         delta = loss_func_deriv(output, target) * np.vectorize(self.out_activ_func_deriv)(self.weighted_sums[-1])
         self.bias_gradients[-1] = delta
-        self.gradients[-1] += delta * self.activ_vals[-1]    
+        self.gradients[-1] += delta * self.activ_vals[-2]
         # rest of network weight gradients 
         # this is calculated by: gradient = dot(delta^T, dWsum/dActiv_value) * dActiv_value/dWsum * dWsum/dWeights
         for i in reversed(range(len(self.gradients) - 1)):
             # reached end -> need to use input as activation values
             if (i == 0):
-                delta = np.dot(delta, np.squeeze(self.layers_weights[i+1])) * np.vectorize(self.activ_func_deriv)(self.weighted_sums[i])
-                print(delta)
+                delta = np.dot(delta, self.layers_weights[i+1]) * np.vectorize(self.activ_func_deriv)(self.weighted_sums[i])
                 self.gradients[i] += np.array([input * error for error in delta])
+                self.bias_gradients[i] = delta
             # somewhere within hidden layer weights
             else:
-                delta = np.dot(delta, np.squeeze(self.layers_weights[i+1])) * np.vectorize(self.activ_func_deriv)(self.weighted_sums[i])
-                print(delta)
+                delta = np.dot(delta, self.layers_weights[i+1]) * np.vectorize(self.activ_func_deriv)(self.weighted_sums[i])
                 self.gradients[i] += np.array([self.activ_vals[i-1] * error for error in delta])
-                
+                self.bias_gradients[i] = delta
+        
         # gradient clipping performed here:
         # print("grad before", self.gradients)
         # min_clip = -1.5
@@ -274,14 +271,21 @@ class FeedForwardNN:
             # np.clip(self.gradients[i], min_clip, max_clip, self.gradients[i])
         
         # print("grad after", self.gradients)
+        # print("bias:", self.bias_gradients)
         
-    # take a step along the negative build up gradient (can be batch, or single sample, whenever you like)
+    # take a step along the negative build up gradient 
     #   backpropage over any number of samples, the build up gradient gets stored in the network
     #   call step(), and a step is taken down this gradient, and the gradient is reset.
     def step(self, lr):
-        # change weights based on negative gradient times learning rate (SGD)
+        # change weights + bias based on negative gradient times learning rate
         for i in range(len(self.layers_weights)):
+            # print(self.layers_weights[i])
+            # print("\n", self.gradients[i])
             self.layers_weights[i] = self.layers_weights[i] - lr * self.gradients[i]
+        for i in range(len(self.layers_biases)):
+            # print("1:", self.layers_biases[i])
+            # print("2:", self.bias_gradients[i])
+            self.layers_biases[i] = self.layers_biases[i] - lr * self.bias_gradients[i]
 
         # reset gradients
         self.__resetGradients()
@@ -289,17 +293,3 @@ class FeedForwardNN:
     # get weights 
     def weights(self):
         return self.layers_weights
-
-nn = FeedForwardNN(2, 1, 2, [2, 2], "sigmoid", "sigmoid")
-input = np.random.rand(2,)
-print("input", input)
-
-weights = nn.weights()
-print("weights", weights)
-
-output = nn.forward(input)[0]
-print("output", output)
-
-nn.backprop(input, output, 1, "BCELoss")
-
-
