@@ -12,8 +12,9 @@ We can:
 - Define input and output sizes, for different types of classification / regression problems
 - Define the number of layers
 - Define the number of hidden units (neurons) for each layer seperately
-- Set the activation function used in the hidden layers
-- Set the activation function used in the hidden to output layer
+- Set the activation function used in the hidden layers (tanh, sigmoid, relu, linear)
+- Set the activation function used in the hidden to output layer (linear, softmax)
+- Use different loss functions (BCELoss, MSELoss (todo))
 
 To train the network (assuming you have your data): <br>
 ```python
@@ -37,7 +38,3 @@ Training is done using stochastic gradient descent.
 ### Loss functions
 - BCELoss
 - TODO: MSELoss + more
-
-# Problems:
-The model has no measure against vanishing/exploding gradients, so when using sigmoid it is often observed that the model stops learning due to the gradient vanishing. 
-Additionally, the gradients can explode when using relu. Dropout and regularization (or even gradient clipping) should be implemented stil (TODO).
