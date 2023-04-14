@@ -14,7 +14,7 @@ We can:
 - Define the number of hidden units (neurons) for each layer seperately
 - Set the activation function used in the hidden layers (tanh, sigmoid, relu, linear)
 - Set the activation function used in the hidden to output layer (linear, softmax)
-- Use different loss functions (BCELoss, MSELoss (todo))
+- Use different loss functions (BCELoss, MSELoss)
 
 To train the network (assuming you have your data): <br>
 ```python
@@ -37,7 +37,8 @@ Training is done using stochastic gradient descent.
 
 ### Loss functions
 - BCELoss
-- TODO: MSELoss + more
+- MSELoss
+- TODO: more
 
 ### Example classification problems solved with this implementation
 ![linear](https://user-images.githubusercontent.com/38500350/232071239-6275f3a5-99e0-4585-95b2-990f5405019f.png)
