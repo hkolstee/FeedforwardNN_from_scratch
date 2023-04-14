@@ -12,8 +12,9 @@ We can:
 - Define input and output sizes, for different types of classification / regression problems
 - Define the number of layers
 - Define the number of hidden units (neurons) for each layer seperately
-- Set the activation function used in the hidden layers
-- Set the activation function used in the hidden to output layer
+- Set the activation function used in the hidden layers (tanh, sigmoid, relu, linear)
+- Set the activation function used in the hidden to output layer (linear, softmax)
+- Use different loss functions (BCELoss, MSELoss (todo))
 
 To train the network (assuming you have your data): <br>
 ```python
